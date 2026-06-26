@@ -56,16 +56,13 @@ elif st.session_state.page == 'student_login':
     st.subheader("Student Portal - Secure Login")
     
     usn_input = st.text_input("USN:")
-    # Set to blank by default and strictly format to DD/MM/YYYY
     dob_input = st.date_input("Date of Birth (Password):", value=None, min_value=datetime.date(1990, 1, 1), format="DD/MM/YYYY")
     
     if st.button("View Dashboard", type="primary", use_container_width=True):
         if not usn_input or dob_input is None:
             st.error("Please enter both your USN and Date of Birth.")
         else:
-            # Format Date to DD/MM/YYYY to match your DB
             formatted_dob = dob_input.strftime("%d/%m/%Y")
-            
             try:
                 response = supabase.table('students').select('*').eq('USN', usn_input).eq('Password', formatted_dob).execute()
                 if len(response.data) > 0:
@@ -92,7 +89,6 @@ elif st.session_state.page == 'student_register':
     st.write("Enter your details. We will email you a secure OTP.")
     
     reg_email = st.text_input("Valid Email Address:")
-    # Set to blank by default and strictly format to DD/MM/YYYY
     reg_dob = st.date_input("Date of Birth (This will act as your password):", value=None, min_value=datetime.date(1990, 1, 1), format="DD/MM/YYYY")
     
     if st.button("Send Secure OTP", type="primary", use_container_width=True):
@@ -106,7 +102,6 @@ elif st.session_state.page == 'student_register':
                 "dob": reg_dob.strftime("%d/%m/%Y")
             }
             
-            # Call EmailJS via REST API
             payload = {
                 "service_id": EMAILJS_SERVICE_ID,
                 "template_id": EMAILJS_TEMPLATE_ID,
@@ -139,7 +134,6 @@ elif st.session_state.page == 'verify_otp':
     
     if st.button("Verify & Generate USN", type="primary"):
         if entered_otp == st.session_state.generated_otp:
-            # Fetch max USN
             res = supabase.table('students').select('USN').execute()
             max_num = 0
             for student in res.data:
@@ -154,7 +148,6 @@ elif st.session_state.page == 'verify_otp':
             
             new_usn = f"STUD{str(max_num + 1).zfill(3)}"
             
-            # Insert into database
             new_record = {
                 'USN': new_usn,
                 'Password': st.session_state.pending_reg['dob'],
@@ -225,6 +218,11 @@ elif st.session_state.page == 'teacher_login':
         else:
             st.error("Invalid Email or Password.")
             
+    st.markdown("---")
+    st.write("New Faculty?")
+    if st.button("Register as Staff", use_container_width=True):
+        navigate_to('teacher_secret_auth')
+            
     if st.button("← Back to Home"):
         navigate_to('home')
 
@@ -285,7 +283,6 @@ elif st.session_state.page == 'teacher_dashboard':
         st.subheader("Enroll New Candidate")
         with st.form("add_form"):
             new_usn = st.text_input("Assign USN:")
-            # Set to blank by default and strictly format to DD/MM/YYYY
             new_dob = st.date_input("Date of Birth:", value=None, min_value=datetime.date(1990, 1, 1), format="DD/MM/YYYY")
             new_att = st.number_input("Initial Attendance (%)", min_value=0, max_value=100, value=0)
             new_fees = st.selectbox("Financial Status", ["Paid", "Not Paid"], index=1)
@@ -326,3 +323,76 @@ elif st.session_state.page == 'teacher_dashboard':
         if 'edit_student' in st.session_state:
             del st.session_state['edit_student']
         navigate_to('home')
+
+# ==========================================
+# 10. PAGE: TEACHER SECRET AUTHENTICATION
+# ==========================================
+elif st.session_state.page == 'teacher_secret_auth':
+    st.subheader("Secure Faculty Onboarding")
+    st.write("Please enter the administrative secret key to access the registration portal.")
+    
+    ADMIN_SECRET_KEY = "CLGPTR-ADMIN-2026"
+    
+    secret_input = st.text_input("Registration Key:", type="password")
+    
+    if st.button("Verify Key", type="primary", use_container_width=True):
+        if secret_input == ADMIN_SECRET_KEY:
+            navigate_to('teacher_registration_form')
+        elif secret_input:
+            st.error("Access Denied: Invalid Security Key.")
+            
+    if st.button("← Back to Teacher Login"):
+        navigate_to('teacher_login')
+
+# ==========================================
+# 11. PAGE: TEACHER REGISTRATION FORM
+# ==========================================
+elif st.session_state.page == 'teacher_registration_form':
+    st.subheader("Faculty Registration")
+    st.write("Enter your professional details below to generate your official college credentials.")
+    
+    with st.form("teacher_reg"):
+        t_name = st.text_input("Full Name:")
+        t_dob = st.date_input("Date of Birth:", value=None, min_value=datetime.date(1950, 1, 1), format="DD/MM/YYYY")
+        t_personal_email = st.text_input("Personal Email:")
+        t_phone = st.text_input("Phone Number:")
+        t_qual = st.text_input("Highest Qualification (e.g., Ph.D. in Computer Science):")
+        t_exp = st.number_input("Years of Experience:", min_value=0, max_value=50, value=0)
+        
+        submit_reg = st.form_submit_button("Generate Official Credentials")
+        
+        if submit_reg:
+            if not t_name or not t_personal_email or t_dob is None:
+                st.error("Please fill in your Name, DOB, and Personal Email.")
+            else:
+                clean_name = t_name.strip().lower().replace(" ", ".")
+                college_email = f"{clean_name}@clg-ptr.edu"
+                
+                generated_password = f"PTR-{random.randint(1000, 9999)}"
+                
+                new_teacher = {
+                    'Name': t_name,
+                    'College Login ID': college_email,
+                    'Password': generated_password,
+                    'DOB': t_dob.strftime("%d/%m/%Y"),
+                    'Personal Email': t_personal_email,
+                    'Qualification': t_qual,
+                    'Experience': t_exp,
+                    'Phone': t_phone
+                }
+                
+                try:
+                    supabase.table('teachers').insert(new_teacher).execute()
+                    
+                    st.success("✅ Faculty Onboarding Complete!")
+                    st.info("Please securely record your new login credentials below. You will use these to access the Teacher Portal.")
+                    
+                    col1, col2 = st.columns(2)
+                    col1.metric("Official College ID", college_email)
+                    col2.metric("Temporary Password", generated_password)
+                    
+                except Exception as e:
+                    st.error(f"Database Error: It looks like this email might already exist. ({e})")
+                    
+    if st.button("Proceed to Teacher Login"):
+        navigate_to('teacher_login')
