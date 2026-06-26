@@ -13,8 +13,8 @@ SUPABASE_KEY = "sb_publishable_0Yuo20gJhB7867u0z22bqA_0EL6AsrI"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 EMAILJS_PUBLIC_KEY = "ajmaE46JFsU00LSOW"
-EMAILJS_SERVICE_ID = "service_ad5cl3d"
-EMAILJS_TEMPLATE_ID = "template_07eocqh"
+EMAILJS_SERVICE_ID = "service_kjx20ng"
+EMAILJS_TEMPLATE_ID = "template_yh5wpdm"
 
 # Configure the Streamlit page
 st.set_page_config(page_title="CLG-PTR Portal", page_icon="🎓", layout="centered")
