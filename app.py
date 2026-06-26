@@ -3,6 +3,7 @@ from supabase import create_client, Client
 import requests
 import random
 import datetime
+import time
 
 # ==========================================
 # 1. CREDENTIALS & SETUP
@@ -214,7 +215,11 @@ elif st.session_state.page == 'teacher_login':
         res = supabase.table('teachers').select('*').eq('College Login ID', t_email).eq('Password', t_pass).execute()
         if len(res.data) > 0:
             st.session_state.user_data = res.data[0]
-            navigate_to('teacher_dashboard')
+            # Interceptor for First Time Login
+            if st.session_state.user_data.get('First Login') is True:
+                navigate_to('teacher_force_password')
+            else:
+                navigate_to('teacher_dashboard')
         else:
             st.error("Invalid Email or Password.")
             
@@ -225,6 +230,27 @@ elif st.session_state.page == 'teacher_login':
             
     if st.button("← Back to Home"):
         navigate_to('home')
+
+# ==========================================
+# 8.5 PAGE: MANDATORY PASSWORD CHANGE
+# ==========================================
+elif st.session_state.page == 'teacher_force_password':
+    st.subheader("Security Setup Required 🔒")
+    st.warning("You are using a temporary password. Please set a permanent password.")
+    new_pass = st.text_input("Enter New Password:", type="password")
+    confirm_pass = st.text_input("Confirm New Password:", type="password")
+    
+    if st.button("Update Password & Continue", type="primary", use_container_width=True):
+        if new_pass == confirm_pass and len(new_pass) >= 6:
+            email_id = st.session_state.user_data['College Login ID']
+            supabase.table('teachers').update({'Password': new_pass, 'First Login': False}).eq('College Login ID', email_id).execute()
+            st.session_state.user_data['First Login'] = False
+            st.session_state.user_data['Password'] = new_pass
+            st.success("Password updated! Redirecting...")
+            time.sleep(1.5)
+            navigate_to('teacher_dashboard')
+        else: 
+            st.error("Passwords do not match or are too short (minimum 6 characters).")
 
 # ==========================================
 # 9. PAGE: TEACHER DASHBOARD
@@ -378,7 +404,8 @@ elif st.session_state.page == 'teacher_registration_form':
                     'Personal Email': t_personal_email,
                     'Qualification': t_qual,
                     'Experience': t_exp,
-                    'Phone': t_phone
+                    'Phone': t_phone,
+                    'First Login': True  # Added to trigger the force password flow
                 }
                 
                 try:
